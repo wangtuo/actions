@@ -1,0 +1,46 @@
+# issue / PR 自动化：新 issue 打标签并 @作者
+name: Issue Triage
+
+on:
+  issues:
+    types: [opened, reopened]
+  pull_request_target:
+    types: [opened, ready_for_review]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  greet:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 欢迎评论
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const isPR = !!context.payload.pull_request;
+            const number = isPR
+              ? context.payload.pull_request.number
+              : context.payload.issue.number;
+            const author = isPR
+              ? context.payload.pull_request.user.login
+              : context.payload.issue.user.login;
+
+            const body = isPR
+              ? `👋 感谢 @${author} 的 PR！CI 会自动跑起来，请留意结果。`
+              : `👋 你好 @${author}，感谢提交 issue！维护者会尽快跟进。`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: number,
+              body,
+            });
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: number,
+              labels: [isPR ? 'needs-review' : 'triage'],
+            });

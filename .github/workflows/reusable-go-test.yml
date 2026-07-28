@@ -1,0 +1,47 @@
+# 复用工作流（reusable workflow）：其他仓库/工作流可以通过
+#   uses: owner/repo/.github/workflows/reusable-go-test.yml@main
+# 调用它，实现 CI 组件化。
+name: Reusable Go Test
+
+on:
+  workflow_call:
+    inputs:
+      go-version:
+        description: "Go 版本"
+        type: string
+        required: false
+        default: "1.22"
+      working-directory:
+        description: "运行目录"
+        type: string
+        required: false
+        default: "."
+    outputs:
+      coverage:
+        description: "总覆盖率百分比"
+        value: ${{ jobs.test.outputs.coverage }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    outputs:
+      coverage: ${{ steps.cov.outputs.percent }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+          cache: true
+
+      - name: 运行测试
+        run: go test -covermode=atomic -coverprofile=coverage.out ./...
+
+      - name: 汇总覆盖率
+        id: cov
+        run: |
+          percent=$(go tool cover -func=coverage.out | tail -n1 | awk '{print $3}')
+          echo "percent=$percent" >> "$GITHUB_OUTPUT"
+          echo "总覆盖率: $percent" >> "$GITHUB_STEP_SUMMARY"
