@@ -7,8 +7,10 @@
 ```
 .
 ├── cmd/hello/          # 可执行程序入口
+├── cmd/tsdb/           # 极简 TSDB CLI（写入 / 查询 / flush）
 ├── pkg/greeter/        # 库代码 + 单元测试
 ├── pkg/math/           # 单元测试 / benchmark / fuzz 演示
+├── pkg/tsdb/           # 磁盘持久化 + WAL 的最小 TSDB 库
 ├── Dockerfile          # 多阶段构建 -> distroless
 ├── .goreleaser.yaml    # Release 打包配置
 ├── .golangci.yml       # 静态检查配置
@@ -34,6 +36,35 @@ go run ./cmd/hello -name Ark -a 3 -b 4
 go test ./...
 go test -bench=. -benchmem ./pkg/math
 go test -fuzz=FuzzAdd -fuzztime=5s ./pkg/math
+```
+
+## TSDB Demo
+
+一个最小可用的时序数据库：labels + 毫秒时间戳 + float64 sample，
+数据写入 WAL 追加日志，达到阈值或显式调用 `Flush` 时落盘为不可变 block 文件，
+重启后通过 WAL 重放恢复未落盘数据，查询自动合并 blocks + head。
+
+作为库使用：
+
+```go
+db, _ := tsdb.Open(tsdb.Options{Dir: "./data", FlushThreshold: 10000})
+defer db.Close()
+
+_ = db.AppendMap(map[string]string{"__name__": "cpu", "host": "a"}, time.Now().UnixMilli(), 0.42)
+
+res, _ := db.Query(tsdb.QueryRequest{
+    Matchers: map[string]string{"__name__": "cpu"},
+    Agg:      tsdb.AggAvg,
+})
+```
+
+作为 CLI 使用：
+
+```bash
+DIR=/tmp/tsdb
+go run ./cmd/tsdb -dir $DIR write cpu host=a value=0.5
+go run ./cmd/tsdb -dir $DIR query __name__=cpu agg=avg
+go run ./cmd/tsdb -dir $DIR flush
 ```
 
 ## Workflow 一览
