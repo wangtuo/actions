@@ -45,7 +45,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
+          # 跟随最新 stable Go，确保能检测到 stdlib 的新 CVE 修复
+          go-version: "stable"
           cache: true
       - name: 安装并运行 govulncheck
         run: |

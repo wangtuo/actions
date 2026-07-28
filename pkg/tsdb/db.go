@@ -117,14 +117,15 @@ func (db *DB) Append(labels Labels, ts int64, v float64) error {
 		id := labels.Hash()
 		// 极小概率哈希冲突：递增直到未占用
 		for {
-			if existing, exists := db.seriesByID[id]; !exists {
+			existing, exists := db.seriesByID[id]
+			if !exists {
 				break
-			} else if existing.Labels.String() == key {
+			}
+			if existing.Labels.String() == key {
 				s = existing
 				break
-			} else {
-				id++
 			}
+			id++
 		}
 		if s == nil {
 			s = &Series{ID: id, Labels: labels}
