@@ -48,15 +48,16 @@ func Open(opts Options) (*DB, error) {
 	if err := db.loadBlocks(); err != nil {
 		return nil, err
 	}
+	// 先 replay：如遇尾部损坏需要 Truncate，此时不能有其他 handle 打开该文件
+	// （Windows 上 O_APPEND 的 handle 会阻塞截断）。
+	if err := replayWAL(opts.Dir, db.applyWALRecord); err != nil {
+		return nil, fmt.Errorf("wal replay: %w", err)
+	}
 	w, err := openWAL(opts.Dir)
 	if err != nil {
 		return nil, err
 	}
 	db.wal = w
-	// 重放 WAL 到 head
-	if err := replayWAL(opts.Dir, db.applyWALRecord); err != nil {
-		return nil, fmt.Errorf("wal replay: %w", err)
-	}
 	return db, nil
 }
 

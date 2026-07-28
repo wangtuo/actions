@@ -73,17 +73,22 @@ func (w *wal) Sync() error {
 }
 
 // truncate 清空 WAL（flush 完成后调用）。
+// 在 Windows 上，用 O_APPEND 打开的文件不能被 Truncate/Seek，
+// 因此这里关闭再以 O_TRUNC 重新打开。
 func (w *wal) truncate() error {
 	if err := w.buf.Flush(); err != nil {
 		return err
 	}
-	if err := w.f.Truncate(0); err != nil {
+	if err := w.f.Close(); err != nil {
 		return err
 	}
-	if _, err := w.f.Seek(0, io.SeekStart); err != nil {
+	path := filepath.Join(w.dir, walFileName)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR|os.O_APPEND|os.O_TRUNC, 0o644)
+	if err != nil {
 		return err
 	}
-	w.buf.Reset(w.f)
+	w.f = f
+	w.buf.Reset(f)
 	w.size = 0
 	return nil
 }
