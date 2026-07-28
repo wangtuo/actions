@@ -79,6 +79,7 @@ jobs:
           cache: true
 
       - name: 运行测试（race + coverage）
+        shell: bash
         run: |
           go test -race -covermode=atomic -coverprofile=coverage.out ./...
 
